@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { APP_NAME } from '@/lib/constants';
+import ModeToggle from './mode-toggle';
 
 
 const Header = () => {
@@ -23,10 +24,11 @@ const Header = () => {
                 </Link>
             </div>
             <div>
+                <ModeToggle />
                 <Button asChild variant='ghost'>
                     <Link href='/cart'><ShoppingCart /> Cart</Link>
                 </Button>
-                <Button asChild variant='ghost'>
+                <Button asChild>
                     <Link href='/sign-in'><UserIcon /> Sign In</Link>
                 </Button>
             </div>
