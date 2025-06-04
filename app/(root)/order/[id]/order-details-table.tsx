@@ -1,4 +1,5 @@
 'use client';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -13,12 +14,23 @@ import { formatCurrency, formatDateTime, formatId } from '@/lib/utils';
 import { Order } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
-
+import {
+    PayPalButtons,
+    PayPalScriptProvider,
+    usePayPalScriptReducer,
+} from '@paypal/react-paypal-js';
+import {
+    createPayPalOrder,
+    approvePayPalOrder,
+} from '@/lib/actions/order.actions';
+import { toast } from 'sonner';
 
 const OrderDetailsTable = ({
     order,
+    paypalClientId,
 }: {
     order: Omit<Order, 'paymentResult'>;
+    paypalClientId: string;
 }) => {
     const {
         id,
@@ -34,6 +46,35 @@ const OrderDetailsTable = ({
         paidAt,
         deliveredAt,
     } = order;
+
+    const PrintLoadingState = () => {
+        const [{ isPending, isRejected }] = usePayPalScriptReducer();
+        let status = '';
+
+        if (isPending) {
+            status = 'Loading PayPal...';
+        } else if (isRejected) {
+            status = 'Error Loading PayPal';
+        }
+        return status;
+    };
+
+    const handleCreatePayPalOrder = async () => {
+        const res = await createPayPalOrder(order.id);
+
+        if (!res.success) {
+            toast.error(res.message);
+        }
+
+        return res.data;
+    };
+
+    const handleApprovePayPalOrder = async (data: { orderID: string }) => {
+        const res = await approvePayPalOrder(order.id, data);
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        res.success ? toast.success(res.message) : toast.error(res.message);
+    };
 
     return (
         <>
@@ -58,7 +99,7 @@ const OrderDetailsTable = ({
                             <h2 className='text-xl pb-4'>Shipping Address</h2>
                             <p>{shippingAddress.fullName}</p>
                             <p className='mb-2'>
-                                {shippingAddress.streetAddress}, {shippingAddress.city}
+                                {shippingAddress.streetAddress}, {shippingAddress.city},{' '}
                                 {shippingAddress.postalCode}, {shippingAddress.country}
                             </p>
                             {isDelivered ? (
@@ -86,7 +127,7 @@ const OrderDetailsTable = ({
                                         <TableRow key={item.slug}>
                                             <TableCell>
                                                 <Link
-                                                    href={`/product/{item.slug}`}
+                                                    href={`/product/${item.slug}`}
                                                     className='flex items-center'
                                                 >
                                                     <Image
@@ -130,6 +171,19 @@ const OrderDetailsTable = ({
                                 <div>Total</div>
                                 <div>{formatCurrency(totalPrice)}</div>
                             </div>
+
+                            {/* PayPal Payment Section */}
+                            {!isPaid && paymentMethod === 'PayPal' && (
+                                <div>
+                                    <PayPalScriptProvider options={{ clientId: paypalClientId }}>
+                                        <PrintLoadingState />
+                                        <PayPalButtons
+                                            createOrder={handleCreatePayPalOrder}
+                                            onApprove={handleApprovePayPalOrder}
+                                        />
+                                    </PayPalScriptProvider>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
