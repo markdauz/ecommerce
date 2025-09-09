@@ -26,6 +26,9 @@ import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
 import { Checkbox } from '../ui/checkbox';
 
+type InsertProductInput = z.infer<typeof insertProductSchema>;
+type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
 const ProductForm = ({
     type,
     product,
@@ -37,14 +40,18 @@ const ProductForm = ({
 }) => {
     const router = useRouter();
 
-    const form = useForm<z.infer<typeof insertProductSchema>>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const form = useForm<any>({
         resolver:
-            type === 'Update'
+            type === "Update"
                 ? zodResolver(updateProductSchema)
                 : zodResolver(insertProductSchema),
         defaultValues:
-            product && type === 'Update' ? product : productDefaultValues,
+            type === "Update"
+                ? (product as UpdateProductInput)
+                : (productDefaultValues as InsertProductInput),
     });
+
 
     const onSubmit: SubmitHandler<z.infer<typeof insertProductSchema>> = async (
         values
