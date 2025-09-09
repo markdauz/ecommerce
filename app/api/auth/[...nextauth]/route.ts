@@ -5,7 +5,28 @@ import { prisma } from '@/db/prisma'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { compareSync } from 'bcrypt-ts-edge'
 
-const authOptions = {
+// Extend next-auth types
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      role: string
+      name: string
+      email: string
+    }
+  }
+
+  interface User {
+    role: string
+  }
+
+  interface JWT {
+    role: string
+  }
+}
+
+// Create the auth options object
+const authOptions: any = {
   pages: {
     signIn: '/sign-in',
     error: '/sign-in',
@@ -56,15 +77,16 @@ const authOptions = {
   callbacks: {
     async session({ session, token }: any) {
       // Set the user ID from the token
-      session.user.id = token.sub
-      session.user.role = token.role
-      session.user.name = token.name
+      if (session.user) {
+        session.user.id = token.sub
+        session.user.role = token.role
+        session.user.name = token.name
+      }
       return session
     },
     async jwt({ token, user, trigger, session }: any) {
       // Assign user fields to token
       if (user) {
-        token.id = user.id
         token.role = user.role
 
         // If user has no name then use the email
@@ -80,10 +102,9 @@ const authOptions = {
 
         // Handle cart merging on sign-in/sign-up
         if (trigger === 'signIn' || trigger === 'signUp') {
-          const request = await import('next/headers').then((mod) =>
-            mod.cookies()
-          )
-          const sessionCartId = request.get('sessionCartId')?.value
+          const { cookies } = await import('next/headers')
+          const cookiesStore = await cookies()
+          const sessionCartId = cookiesStore.get('sessionCartId')?.value
 
           if (sessionCartId) {
             const sessionCart = await prisma.cart.findFirst({
@@ -107,7 +128,7 @@ const authOptions = {
       }
 
       // Handle session updates
-      if (session?.user.name && trigger === 'update') {
+      if (session?.user?.name && trigger === 'update') {
         token.name = session.user.name
       }
 
@@ -116,5 +137,8 @@ const authOptions = {
   },
 }
 
+// Create the handler
 const handler = NextAuth(authOptions)
+
+// Export as named exports
 export { handler as GET, handler as POST }
